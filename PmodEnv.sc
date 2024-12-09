@@ -6,7 +6,14 @@ PmodEnv : Pattern {
 		^super.newCopyArgs(valPat, timePat, curvePat, repeats);
 	}
 
-    //initClass
+	*initClass {
+		SynthDef(\PmodEnv_mono, { arg out=0, gate=1;
+			var sig;
+			sig = EnvGen.kr(\env.kr(Env([1,1],[0.1])), \itrig.tr(1), doneAction:0);
+			sig = sig * EnvGen.kr(Env([1,1,1],[0.1,0.8], releaseNode:1), gate, doneAction:2);
+			Out.kr(out, sig);
+		}).add;
+	}
 
 	storeArgs { ^[valPat, timePat, curvePat, repeats] }
 
@@ -45,7 +52,7 @@ PmodEnv : Pattern {
 		});
 
 		finish_fun = {
-			patplayer = Pmono(\modenvmono,
+			patplayer = Pmono(\PmodEnv_mono,
 				\out, bus,
 				\itrig, 1,
 				[ \dur, \env ], Prout({ arg monoev;
