@@ -72,10 +72,12 @@ ARGUMENT:: valPat
 The pattern of the level of the envelope
 
 ARGUMENT:: timePat
-The pattern of the time for each segment
+The pattern of the time for each segment. Default value 1.
+If you pass \dur instead of a pattern, it will use the value from the \dur key
+of the pattern (and handle \stretch).
 
 ARGUMENT:: curvePat
-The pattern of the curve for each segment
+The pattern of the curve for each segment. Default value 0.
 
 ARGUMENT:: repeats
 The repeat number. By default 1. If the pattern for level, time or curve are

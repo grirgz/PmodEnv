@@ -29,8 +29,11 @@ PmodEnv : Pattern {
 			}.fork;
 		};
 
-		//timePat = timePat ??  { Plazy({ ev[\dur] }).loop };
-		timePat = timePat ??  1;
+		if(timePat == \dur) {
+			timePat = Pfunc({ arg ev; ev.delta.value });
+		} {
+			timePat = timePat ??  1;
+		};
 		curvePat = curvePat ??  { 0 };
 
 		cleanup.addFunction(ev, cleanup_fun);
@@ -48,17 +51,18 @@ PmodEnv : Pattern {
 				[ \dur, \env ], Prout({ arg monoev;
 					var valstr = valPat.asStream;
 					var curvestr = curvePat.asStream;
-					var previous = valstr.next;
+					var previous = valstr.next(ev);
 					var time;
 					timestr = timePat.asStream;
 
 					block { arg break;
-						valstr.do { arg val;
+						valstr.do({ arg val;
 							var prev = previous;
 							var curve;
 							//val.debug("pmodenv val");
-							time = timestr.next;
-							curve = curvestr.next;
+							//ev.debug("ev inside modenvmono");
+							time = timestr.next(ev);
+							curve = curvestr.next(ev);
 							if(time.isNil) { 
 								time = 2;
 								monoev[\dur] = time;
@@ -75,7 +79,7 @@ PmodEnv : Pattern {
 							monoev = [time, [ Env([prev,val],[time]/thisThread.clock.tempo, curve) ]].yield;
 
 							previous = val;
-						};
+						},ev);
 					};
 					running = false;
 					monoev;
@@ -92,7 +96,7 @@ PmodEnv : Pattern {
 		};
 
 		while{ running == true } {
-			cleanup.update(ev, cleanup_fun);
+			cleanup.update(ev);
 			ev = bus.asMap.yield;
 		};
 		cleanup.exit(ev);
