@@ -114,9 +114,9 @@ PnoteEnv {
 		}).add;
 
 		(2..maxSize).do { arg num;
-			SynthDef(( \PnoteEnv_size++num ).asSymbol, { arg out=0, gate=1, levelScale=1, levelBias=0;
+			SynthDef(( \PnoteEnv_size++num ).asSymbol, { arg out=0, levelScale=1, levelBias=0;
 				var sig;
-				sig = EnvGen.kr(\env.kr( Env(1!num, 1!(num-1), 0!(num-1)) ), gate, levelScale: levelScale, levelBias: levelBias, doneAction:2);
+				sig = EnvGen.kr(\env.kr( Env(1!num, 1!(num-1), 0!(num-1)) ), 1, levelScale: levelScale, levelBias: levelBias, doneAction:2);
 				ReplaceOut.kr(out, sig);
 			}).add;
 		};
@@ -225,7 +225,7 @@ PnoteEnv {
 						envev[\levelScale] = nextlevel;
 						envev[\levelBias] = nextbias;
 						envev[\timeScale] = nexttime;
-						envev[\hasGate] = false; // prevent node not found msg
+						//envev[\sendGate] = false; // prevent node not found msg
 
 						envev.play;
 						// FIXME: cleanup function accumulate during the whole pattern 
