@@ -1,0 +1,8 @@
+(
+	\name:		"PmodEnv",
+	\summary:	"Modulate Pbind keys by envelopes",
+	\author:	"grirgz",
+	\version:	"0.1",
+	\dependencies: [],
+	\url:		"https://github.com/grirgz/PmodEnv"
+)
