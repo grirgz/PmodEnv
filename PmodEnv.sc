@@ -140,7 +140,7 @@ PnoteEnv {
 
 			});
 		} {
-			Log(\PmodEnv).debug("has already a payload");
+			//Log(\PmodEnv).debug("has already a payload");
 		};
 		^(type: \PmodEnv_payload, payload: { fun }).yield;
 	}
