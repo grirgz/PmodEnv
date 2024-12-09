@@ -1,0 +1,116 @@
+TITLE:: PmodEnv
+summary:: Modulate a pattern with an envelope that continue during the whole pattern
+categories:: Pattern
+related:: Classes/PnoteEnv, Classes/PpatEnv
+
+DESCRIPTION::
+To modulate a synth argument, you just have to map a bus into it and run a
+parallel pattern or synth that modulate this bus. This pattern allow you to do
+this and manage the modulator synth for you.
+
+note::
+There is a problem when the PmodEnv pattern is infinite while the underlying
+Pbind is finite. The PmodEnv pattern will continue forever in the background.
+That's why the default value of code::repeats:: is 1.
+The work around is to add call .loop on PmodEnv (or put it inside any repeating
+pattern), so it can only loop if the underlying Pbind ask another value and not
+forever.
+
+Use this:
+code::
+\lpfr, PmodEnv(Pseq([1,2],inf), 2).loop,
+::
+Instead of this
+code::
+\lpfr, PmodEnv(Pseq([1,2],inf), 2, repeats:inf),
+::
+
+Note also that a repeating envelope (with .loop) will always start at first
+level, with brutal jump from last level, while an infinite
+envelope will interpolate between last level and first level over time
+::
+
+In this quark there is also:
+LIST::
+## link::Classes/PnoteEnv:: The modulating Env is unique to each event note
+## link::Classes/PpatEnv:: Generate a static Env from a pattern, for synthdef that take an Env as argument
+::
+
+CLASSMETHODS::
+
+METHOD:: new
+Modulate this Pbind key with a long lasting envelope
+
+code::
+(
+SynthDef(\saw, { arg out=0, amp=0.1, gate=1, pan=0, spread=0.8, freq=200,  doneAction=2;
+	var sig, sig1, sig2, sig3;
+	sig = LFSaw.ar(freq * [1.01,1,0.99]);
+	sig = RLPF.ar(sig, \lpfr.kr(1.1) * freq, \rq.kr(0.5).poll);
+	sig = sig * EnvGen.ar(\adsr.kr(Env.adsr(0.01,0.1,0.8,0.1)),gate,doneAction:doneAction);
+	sig = Splay.ar(sig, spread, amp, pan);
+	Out.ar(out, sig);
+}).add;
+)
+
+(
+Pdef(\doc,
+	Pbind(
+		\instrument, \saw,
+		\note, Pseq([1,5,2,0],inf),
+		// start an env modulating lpfr where each segment is 2 beat long
+		\lpfr, PmodEnv(Pseq([1/2,2,1,4],1), 2),
+		\legato, 1/2,
+		\dur, 1/2,
+		\amp, 0.1,
+	),
+).play;
+)
+::
+
+ARGUMENT:: valPat
+The pattern of the level of the envelope
+
+ARGUMENT:: timePat
+The pattern of the time for each segment
+
+ARGUMENT:: curvePat
+The pattern of the curve for each segment
+
+ARGUMENT:: repeats
+The repeat number. By default 1. If the pattern for level, time or curve are
+infinite, the pattern will be infinite regardless of code::repeats:: value.
+
+returns:: a Pattern
+
+EXAMPLES::
+
+code::
+(
+SynthDef(\saw, { arg out=0, amp=0.1, gate=1, pan=0, spread=0.8, freq=200,  doneAction=2;
+	var sig, sig1, sig2, sig3;
+	sig = LFSaw.ar(freq * [1.01,1,0.99]);
+	sig = RLPF.ar(sig, \lpfr.kr(1.1) * freq, \rq.kr(0.5).poll);
+	sig = sig * EnvGen.ar(\adsr.kr(Env.adsr(0.01,0.1,0.8,0.1)),gate,doneAction:doneAction);
+	sig = Splay.ar(sig, spread, amp, pan);
+	Out.ar(out, sig);
+}).add;
+)
+
+// Pmono is supported
+(
+Pdef(\doc,
+	Pmono(
+		\saw,
+		\note, Pseq([1,5,2,0],inf),
+		\lpfr, Pseq([
+			PmodEnv(Prand([1/2,4,1],10), Pwhite(0.1,2,inf), Prand([-1,0,1],inf)),
+		],inf),
+		\legato, 1/2,
+		\dur, 1/2,
+		\amp, 0.1,
+	),
+).play;
+)
+::
+

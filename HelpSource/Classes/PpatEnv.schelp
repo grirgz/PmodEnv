@@ -1,0 +1,119 @@
+TITLE:: PpatEnv
+summary:: Allow patterns inside Env synth parameters
+categories:: Pattern
+related:: Classes/PnoteEnv, Classes/PmodEnv
+
+DESCRIPTION::
+You can provide envelopes as argument to synthdefs in Pbind, but they can't contains
+patterns. PpatEnv is like Env but can contains patterns.
+
+Not to be confused with link::Classes/Penv::. Penv run the Env and sample it during the whole pattern while
+PpatEnv provide a new Env to the synthdef for each note.
+
+CLASSMETHODS::
+
+METHOD:: adsr
+code::
+(
+SynthDef(\sawenv, { arg out=0, amp=0.1, gate=1, pan=0, spread=0.8, freq=200,  doneAction=2;
+	var sig, sig1, sig2, sig3;
+	var env;
+	sig = LFSaw.ar(freq * [1.01,1,0.99]);
+	env = EnvGen.kr(\lpadsr.kr(Env.adsr(0.1,0.1,0.8,0.1)), gate, doneAction:0, levelBias:\lpfr.kr(1.1));
+	sig = RLPF.ar(sig, env * freq, \rq.kr(0.5));
+	sig = sig * EnvGen.ar(\adsr.kr(Env.adsr(0.01,0.1,0.8,0.1)),gate,doneAction:doneAction);
+	sig = Splay.ar(sig, spread, amp, pan);
+	Out.ar(out, sig);
+}).add;
+)
+
+(
+Pdef(\doc,
+	Pbind(
+		\instrument, \sawenv,
+		\note, Pseq([1,5,2,0],inf),
+		\lpfr, 1,
+		// control both amp adsr and cutoff adsr
+		\lpadsr, PpatEnv.adsr(Pseq([0.1, 0.9], inf), 0.1, 0.2, 0.2, 3),
+		\adsr, PpatEnv.adsr(Pwhite(0.01, 0.4, inf), 0.1, 0.8, Pwhite(0.01, 1.0, inf)),
+		\legato, 1/3,
+		\dur, 1/2,
+	),
+).play;
+)
+::
+
+ARGUMENT::  ... args
+Same arguments as link::Classes/Env#*adsr:: but each argument can be a pattern.
+
+returns:: a Pattern
+
+METHOD:: new
+
+code::
+(
+SynthDef(\sawenv2, { arg out=0, amp=0.1, gate=1, pan=0, spread=0.8, freq=200,  doneAction=2;
+	var sig, sig1, sig2, sig3;
+	var env;
+	sig = LFSaw.ar(freq * [1.01,1,0.99]);
+	env = EnvGen.kr(\lpenv.kr(Env([1,2,1,2],[0.1,0.8,0.1].normalizeSum)), gate);
+	sig = RLPF.ar(sig, env * freq, \rq.kr(0.5));
+	sig = sig * EnvGen.ar(\adsr.kr(Env.adsr(0.01,0.1,0.8,0.1)),gate,doneAction:doneAction);
+	sig = Splay.ar(sig, spread, amp, pan);
+	Out.ar(out, sig);
+}).add;
+);
+
+(
+Pdef(\doc,
+	Pbind(
+		\instrument, \sawenv2,
+		\note, Pseq([1,5,2,0],inf),
+		// env must have same size as env in SynthDef
+		\lpenv, PpatEnv( Pwhite(0.1,2.9,inf)!4, Pwhite(0.1,1/2,inf)!3 ),
+		\lpfr, 1,
+		\legato, 1,
+		\dur, 1,
+	),
+).play;
+)
+::
+
+ARGUMENT::  ... args
+Same arguments as link::Classes/Env#*new:: but each argument can be a pattern.
+
+
+returns:: a Pattern
+
+
+INSTANCEMETHODS::
+
+
+EXAMPLES::
+
+code::
+// this code without PpatEnv
+(
+Pdef(\doc,
+	Pbind(
+		\instrument, \sawenv,
+		\note, Pseq([1,5,2,0],inf),
+		\lpadsr, Pseq([
+			[ Env.adsr(0.1,0.1,0.2,0.2,3) ],
+			[ Env.adsr(0.6,0.1,0.2,0.2,3) ],
+		],inf),
+	),
+).play;
+)
+// is the same as:
+(
+Pdef(\doc,
+	Pbind(
+		\instrument, \sawenv,
+		\note, Pseq([1,5,2,0],inf),
+		\lpadsr, PpatEnv.adsr(Pseq([0.1,0.6],inf),0.1,0.2,0.2,3),
+	),
+).play;
+)
+::
+

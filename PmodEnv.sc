@@ -124,14 +124,14 @@ PnoteEnv {
 
 	*makePayload { arg event, fun;
 		if(event[\hasPmodEnvPayload] != true) {
-			debug("attach payload");
+			//debug("attach payload");
 			event[\hasPmodEnvPayload] = true;
 			event[\finish] = event[\finish].addFunc({ arg ev;
-				"ss".debug("run finish");
+				//"ss".debug("run finish");
 				ev.keys.do { arg key;
 					if(ev[key].isKindOf(Event)) {
 						if([\PmodEnv_payload].includes(ev[key][\type])) {
-							ev[key].payload.debug("run finish");
+							//ev[key].payload.debug("run finish");
 							ev[key] = ev[key].payload.(ev, key);
 						};
 					};
@@ -168,7 +168,7 @@ PnoteEnv {
 				var make_cleanup_fun;
 				make_cleanup_fun = { arg lbus;
 					{
-						debug("pnoteEnv_generic cleanup_fun");
+						//debug("pnoteEnv_generic cleanup_fun");
 						if(lbus.index.notNil) {
 							var reltime;
 							var env = nextenv ?? { prevenv };
@@ -179,7 +179,7 @@ PnoteEnv {
 							};
 							{
 								if(lbus.index.notNil) {
-									[lbus, reltime].debug("free bus");
+									//[lbus, reltime].debug("free bus");
 									lbus.free;
 								}
 							}.defer(reltime);
@@ -187,13 +187,13 @@ PnoteEnv {
 					}
 				};
 
-				1000.do { arg loopidx;
+				inf.do { arg loopidx;
 					var bus;
 					var cleanup_fun;
 					var envev;
 					var nextlevel, nexttime, nextbias;
 					var cleanup = EventStreamCleanup.new;
-					loopidx.debug("newloop");
+					//loopidx.debug("newloop");
 					envev = ();
 					prevenv = nextenv;
 					nextenv = str.next;
@@ -201,19 +201,20 @@ PnoteEnv {
 					nextbias = biasstr.next;
 					nexttime = timestr.next;
 					if(nextenv.isNil or: { nextlevel.isNil } or: { nexttime.isNil } or: { nextbias.isNil }) {
-						debug("break");
+						//debug("break");
 						break.value;
-						//ev = nil.yield
 					};
 
-					cleanup.addFunction(ev, { "EventStreamCleanup run".debug; cleanup_fun.() });
+					//cleanup.addFunction(ev, { "EventStreamCleanup run".debug; cleanup_fun.() });
+					cleanup.addFunction(ev, { cleanup_fun.() });
 					ev = this.makePayload(ev, { arg iev, key;
 						var env;
 						bus = Bus.control(Server.default, 1); 
 						env = nextenv ? prevenv;
-						bus.debug("new payload local bus");
+						//bus.debug("new payload local bus");
 						cleanup_fun = make_cleanup_fun.(bus);
-						bus.set(env.asEnv.levels.first);
+						(type: \bus, array: env.asEnv.levels.first, out: bus).play;
+						//bus.set(env.asEnv.levels.first);
 
 						envev[\out] = bus;
 						[\sustain, \legato, \dur].do { arg key, idx;
@@ -226,15 +227,15 @@ PnoteEnv {
 						envev[\timeScale] = nexttime;
 						envev[\hasGate] = false; // prevent node not found msg
 
-						debug("debug5");
 						envev.play;
-						debug("debug6");
+						// FIXME: cleanup function accumulate during the whole pattern 
+						//	  while bus are already freed after each note
 						cleanup.update(iev);
 						thisThread.clock.sched(envev[\dur], {
-							bus.debug("clean bus by sched");
+							//bus.debug("clean bus by sched");
 							cleanup_fun.()
 						});
-						debug("debug7");
+						//debug("debug7");
 						bus.asMap;
 
 					});
@@ -265,10 +266,10 @@ PnoteEnv {
 }
 
 PpatEnv {
-	*new {
+	*new { arg ...args;
 		^Ptuple( Env(*args).asArray ).collect{ arg x; [x] }
 	}
-	*adsr {
+	*adsr { arg ...args;
 		^Ptuple( Env.adsr(*args).asArray ).collect{ arg x; [x] }
 	}
 }

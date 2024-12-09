@@ -1,0 +1,199 @@
+TITLE:: PnoteEnv
+summary:: Envelope modulating each note
+categories:: Patterns
+related:: Classes/PmodEnv, Classes/PpatEnv
+
+DESCRIPTION::
+Instead of hardcoding EnvGen into your SynthDef, you can use another SynthDef
+containing only the EnvGen and connect it to any synth parameter you want. This
+pattern allow you to do this and manage the EnvGen synth for you.
+
+This can only be used inside Pbind, Pmono or PmonoArtic since it use the Event
+key \finish key to create the EnvGen synth.
+
+Notes can be overlapping, each note have its own mapped bus.
+
+The modulating synth is control rate.
+
+CLASSMETHODS::
+
+
+METHOD:: adsr
+Create an adsr envelope and run it for each note of the pattern. Each argument
+can be a pattern. See link::Classes/Env#*adsr:: and link::Classes/EnvGen:: for
+description of arguments.
+
+code::
+(
+SynthDef(\saw, { arg out=0, amp=0.1, gate=1, pan=0, spread=0.8, freq=200,  doneAction=2;
+	var sig, sig1, sig2, sig3;
+	sig = LFSaw.ar(freq * [1.01,1,0.99]);
+	sig = RLPF.ar(sig, \lpfr.kr(1.1) * freq, \rq.kr(0.5).poll);
+	sig = sig * EnvGen.ar(\adsr.kr(Env.adsr(0.01,0.1,0.8,0.1)),gate,doneAction:doneAction);
+	sig = Splay.ar(sig, spread, amp, pan);
+	Out.ar(out, sig);
+}).add;
+)
+
+(
+Pdef(\doc, 
+	Ppar([
+		Pbind(
+			\instrument, \saw,
+			\note, Pseq([1,5,2,0],inf),
+			// Each note cutoff frequency will be modulated by en envelope
+			// first note will have attack=0.1, second will have attack=2.1
+			// peak level of 3 and levelBias of 1 so the lpfr will be from 1 to 4
+			\lpfr, PnoteEnv.adsr(Pseq([0.1,2.1],inf),0.1,0.2,Pseq([0.3,1],inf),3, levelBias:1),
+			\dur, 2,
+		),
+		
+	])
+)).play;
+)
+::
+
+ARGUMENT:: attack
+
+ARGUMENT:: decay
+
+ARGUMENT:: sustainLevel
+
+ARGUMENT:: release
+
+ARGUMENT:: peakLevel
+
+ARGUMENT:: curves
+
+ARGUMENT:: levelScale
+
+ARGUMENT:: levelBias
+
+ARGUMENT:: timeScale
+
+returns:: a Pattern
+
+METHOD:: new
+Create an Env and run it for each note of the pattern. Each argument
+can be a pattern. See link::Classes/Env#*new:: and link::Classes/EnvGen:: for
+description of arguments.
+
+code::
+(
+Pdef(\doc,
+	Pbind(
+		\instrument, \saw,
+		\note, Pseq([1,5,2,0],inf),
+		\lpfr, Pseq([
+			// no finite pattern mean infinite pattern, so I use .keep to get the first value and stop
+			PnoteEnv([0.5,2,1,5],[0.1,0.4,0.4]/2).keep(1),
+			PnoteEnv([0.5,Pwhite(0.1,5,1)],[0.4]),
+		],4),
+		\legato, 1/2,
+		\dur, 1,
+		\amp, 0.1,
+	),
+).play;
+)
+::
+ARGUMENT:: levels
+
+ARGUMENT:: times
+
+ARGUMENT:: curves
+
+ARGUMENT:: levelScale
+
+ARGUMENT:: levelBias
+
+ARGUMENT:: timeScale
+
+returns:: a Pattern
+
+METHOD:: addSynthDefs
+Automatically run at startup.
+Define the Synthdefs used for running the envelopes. \PnoteEnv_adsr and
+\PnoteEnv_size2 to \PnoteEnv_size10 to handle different Env size.
+
+ARGUMENT:: maxSize
+Default to 10, you can run this method with 100 to be able to use Env with 100
+segments
+
+
+METHOD:: env
+Generic method used by *new and *adsr to generate the pattern and modulator synth
+
+ARGUMENT:: envpat
+The Env to use for modulation. Each argument of the Env can be a pattern.
+
+ARGUMENT:: synthdef
+The synthdef for modulation that accept the kind of Env in envpat
+
+ARGUMENT:: levelScale
+
+ARGUMENT:: levelBias
+
+ARGUMENT:: timeScale
+
+returns:: a Pattern
+
+METHOD:: makePayload
+Internal method.
+
+This is the black magic of PnoteEnv. It add a function to \finish key that
+check every Pbind key and if it contains an event of type \PmodEnv_payload , it execute it and
+replace its key by its result.
+
+This is necessary because you don't want to create busses and synth only by
+unrolling the stream of the pattern. They will never be freed. The solution is to
+create resources only when using .play, this can be done by creating them in \finish function. 
+
+But how PnoteEnv know the key in which it's inserted ? It can't, but it can
+return a placeholder for the \finish function
+
+this function will also yield the PmodEnv_payload event.
+
+ARGUMENT:: event
+The current event. makePayload is often used in Prout, the first argument of
+Prout is this event
+
+ARGUMENT:: fun
+The function to be executed for each note. For example it can create a bus,
+launch a synth writing to this bus and return bus.asMap. The return value will
+be used in the event key after.
+
+returns:: the event returned by .yield
+
+INSTANCEMETHODS::
+
+
+EXAMPLES::
+
+code::
+(
+SynthDef(\saw, { arg out=0, amp=0.1, gate=1, pan=0, spread=0.8, freq=200,  doneAction=2;
+	var sig, sig1, sig2, sig3;
+	sig = LFSaw.ar(freq * [1.01,1,0.99]);
+	sig = RLPF.ar(sig, \lpfr.kr(1.1) * freq, \rq.kr(0.5).poll);
+	sig = sig * EnvGen.ar(\adsr.kr(Env.adsr(0.01,0.1,0.8,0.1)),gate,doneAction:doneAction);
+	sig = Splay.ar(sig, spread, amp, pan);
+	Out.ar(out, sig);
+}).add;
+)
+
+// work with Pmono
+(
+Pdef(\doc,
+	Ppar([
+		Pmono(\saw,
+			\note, Pseq([1,5,2,0],inf),
+			\lpfr, PnoteEnv.adsr(Pseq([0.1,2.1],inf),0.1,0.2,Pseq([0.3,1],inf),3, levelBias:1),
+			\dur, 1,
+			\amp, 0.1,
+		),
+		
+	])
+).play;
+)
+::
+
