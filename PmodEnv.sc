@@ -86,7 +86,7 @@ PmodEnv : Pattern {
 
 		if(ev[\finish].isKindOf(Function)) {
 			var oldfun = ev[\finish];
-			ev[\finish] = { finish_fun.value; oldfun.value };
+			ev[\finish] = oldfun.addFunc(finish_fun);
 		} {
 			ev[\finish] = finish_fun;
 		};
