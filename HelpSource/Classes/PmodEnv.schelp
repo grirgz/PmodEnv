@@ -9,25 +9,30 @@ parallel pattern or synth that modulate this bus. This pattern allow you to do
 this and manage the modulator synth for you.
 
 note::
-There is a problem when the PmodEnv pattern is infinite while the underlying
-Pbind is finite. The PmodEnv pattern will continue forever in the background.
-That's why the default value of code::repeats:: is 1.
-The work around is to add call .loop on PmodEnv (or put it inside any repeating
-pattern), so it can only loop if the underlying Pbind ask another value and not
-forever.
+A repeating envelope (with .loop) will always start at first
+level, with brutal jump from last level, while an infinite
+envelope will interpolate between last level and first level over time.
 
-Use this:
+It is often more practical to use this:
 code::
-\lpfr, PmodEnv(Pseq([1,2],inf), 2).loop,
+\lpfr, PmodEnv(Pseq([1,2],1), 2).loop,
 ::
 Instead of this
 code::
-\lpfr, PmodEnv(Pseq([1,2],inf), 2, repeats:inf),
+\lpfr, PmodEnv(Pseq([1,2],inf), 2),
+::
 ::
 
-Note also that a repeating envelope (with .loop) will always start at first
-level, with brutal jump from last level, while an infinite
-envelope will interpolate between last level and first level over time
+note::
+There was a problem when the PmodEnv pattern is infinite while the underlying
+Pbind is finite. EventStreamCleanup.exit is not called, so the PmodEnv pattern will
+continue forever in the background.  I added a watchdog to free PmodEnv so this
+is solved by a work around. However if you manipulate \dur data outside of the pattern, this can
+cause problems. Let me know if it is the case so i can find a solution.
+That's why the default value of code::repeats:: is 1.
+Another work around is to add call .loop on PmodEnv (or put it inside any repeating
+pattern), so it can only loop if the underlying Pbind ask another value and not
+forever.
 ::
 
 In this quark there is also:
@@ -103,7 +108,7 @@ SynthDef(\sawenv, { arg out=0, gate=1, amp=0.1, pan=0, freq=200;
 )
 
 (
-Pdef(\acidbass, 
+Pdef(\doc, 
 	Pbind(
 		\instrument, \sawenv,
 		\degree, Pseq([0,3,2,-2],inf),
