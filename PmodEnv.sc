@@ -1,5 +1,6 @@
 
 PmodEnv : Pattern {
+	classvar watchdogEnabled = true;
 	var valPat, timePat, curvePat, repeats;
 
 	*new { arg valPat, timePat, curvePat, repeats=1;
@@ -17,97 +18,157 @@ PmodEnv : Pattern {
 
 	storeArgs { ^[valPat, timePat, curvePat, repeats] }
 
-	embedInStream { arg ev;
-		var bus = Bus.control(Server.default, 1);
-		var timestr;
-		var running = true;
-		var cleanup = EventStreamCleanup.new;
-		var patplayer;
-		var finish_fun;
-		var cleanup_fun = {
-			patplayer.stop;
-			running = false;
-			//"pmodenv: CLEANUP".debug;
-			{
-				2.wait;
-				if(bus.index.notNil) {
-					bus.free;
-				}
-			}.fork;
-		};
+	embedInStream { arg strev;
+		^Prout({ arg ev;
 
-		if(timePat == \dur) {
-			timePat = Pfunc({ arg ev; ev.delta.value });
-		} {
-			timePat = timePat ??  1;
-		};
-		curvePat = curvePat ??  { 0 };
+			var timestr;
+			var running = true;
+			var cleanup = EventStreamCleanup.new;
+			var cleanup_fun;
+			var patplayer;
+			var finish_fun;
+			var cmdperiod_fun;
+			var watchdog;
+			var bus;
+			var watchdogEnabled = this.class.watchdogEnabled;
 
-		cleanup.addFunction(ev, cleanup_fun);
+			cleanup_fun = {
+				//[valPat, bus].debug("pmodenv: CLEANUP");
+				patplayer.stop;
+				running = false;
+				{
+					2.wait;
+					//CmdPeriod.objects.do { arg obj, idx;
+					////idx.debug("cmdperiod obj");
+					//if(obj.isKindOf(Function)) {
+					////obj.dump
+					//};
+					//};
+					//cmdperiod_fun.dump;
+					//CmdPeriod.remove(cmdperiod_fun);
+					//CmdPeriod.objects.debug("cmdperiod after");
+					if(bus.index.notNil) {
+						bus.free;
+					}
+				}.fork;
+			};
+			cleanup.addFunction(ev, cleanup_fun); // should not be inside \finish
 
-		CmdPeriod.doOnce({ 
-			if(bus.index.notNil) {
-				bus.free 
-			}
-		});
+			watchdog = (
+				alive: { arg self, dur;
+					//dur.debug("alive");
+					self.aliveDur = dur * 2; // times 2 for security
+					self.aliveTime = thisThread.clock.beats;
+				},
 
-		finish_fun = {
-			patplayer = Pmono(\PmodEnv_mono,
-				\out, bus,
-				\itrig, 1,
-				[ \dur, \env ], Prout({ arg monoev;
-					var valstr = valPat.asStream;
-					var curvestr = curvePat.asStream;
-					var previous = valstr.next(ev);
-					var time;
-					timestr = timePat.asStream;
-
-					block { arg break;
-						valstr.do({ arg val;
-							var prev = previous;
-							var curve;
-							//val.debug("pmodenv val");
-							//ev.debug("ev inside modenvmono");
-							time = timestr.next(ev);
-							curve = curvestr.next(ev);
-							if(time.isNil) { 
-								time = 2;
-								monoev[\dur] = time;
-								break.value;
-							};
-							if(curve.isNil) { 
-								time = 2;
-								monoev[\dur] = time;
-								break.value;
-							};
-
-							//monoev[\dur] = time;
-							//Env([prev,val],[time]/thisThread.clock.tempo).asCompileString.debug("env");
-							monoev = [time, [ Env([prev,val],[time]/thisThread.clock.tempo, curve) ]].yield;
-
-							previous = val;
-						},ev);
+				isDead: { arg self;
+					//[self.aliveTime, self.aliveDur].debug("isDead");
+					if(watchdogEnabled == true) {
+						if(self.aliveTime.notNil and: {self.aliveDur.notNil}) {
+							if(thisThread.clock.beats - self.aliveTime > self.aliveDur ) {
+								true
+							} {
+								false
+							}
+						} {
+							false
+						};
+					} {
+						false
 					};
-					running = false;
-					monoev;
-				}),
-				\legato, 1,
-			).play;
-		};
+				},
+			);
 
-		if(ev[\finish].isKindOf(Function)) {
-			var oldfun = ev[\finish];
-			ev[\finish] = oldfun.addFunc(finish_fun);
-		} {
-			ev[\finish] = finish_fun;
-		};
+			ev = PnoteEnv.makePayload(ev, { arg iev;
 
-		while{ running == true } {
-			cleanup.update(ev);
-			ev = bus.asMap.yield;
-		};
-		cleanup.exit(ev);
-		^ev;
+				bus = Bus.control(Server.default, 1);
+
+				//[valPat, bus].debug("pmodenv: NEW PAT");
+
+				//if(timePat == \dur) {
+					//timePat = Pfunc({ arg iev; ev.delta.value });
+				//} {
+					//timePat = timePat ??  1;
+				//};
+				timePat = timePat ?? { Pfunc({ ev.delta.value }) };
+				curvePat = curvePat ??  { 0 };
+
+
+				cmdperiod_fun = { 
+					//[ valPat, bus ].debug("cmdperiod: free bus");
+					if(bus.index.notNil) {
+						bus.free 
+					}
+				};
+				CmdPeriod.doOnce(cmdperiod_fun);
+
+				watchdog.alive(iev.delta ?? iev.dur);
+
+				patplayer = Pmono(\PmodEnv_mono,
+					\out, bus,
+					\itrig, 1,
+					[ \dur, \env ], Prout({ arg monoev;
+						var valstr = valPat.asStream;
+						var curvestr = curvePat.asStream;
+						var previous = valstr.next;
+						var time;
+						timestr = timePat.asStream;
+
+						block { arg break;
+							valstr.do({ arg val;
+								var prev = previous;
+								var curve;
+								//val.debug("pmodenv val");
+								//ev.debug("ev inside modenvmono");
+								time = timestr.next;
+								curve = curvestr.next;
+								if(time.isNil) { 
+									time = 2;
+									monoev[\dur] = time;
+									break.value;
+								};
+								if(curve.isNil) { 
+									time = 2;
+									monoev[\dur] = time;
+									break.value;
+								};
+
+								//monoev[\dur] = time;
+								//Env([prev,val],[time]/thisThread.clock.tempo).asCompileString.debug("env");
+								if(watchdog.isDead) {
+									//"dead!".debug;
+									break.value;
+								};
+								monoev = [time, [ Env([prev,val],[time]/thisThread.clock.tempo, curve) ]].yield;
+
+								previous = val;
+							});
+						};
+						{
+							cmdperiod_fun.(); // cleanup only bus since other are already cleaned
+						}.defer(2);
+						running = false;
+						monoev;
+					}),
+					\legato, 1,
+				).play;
+				bus.asMap;
+			});
+
+
+			while{ running == true } {
+				ev = PnoteEnv.makePayload(ev, { arg iev;
+					watchdog.alive(iev.delta ?? iev.dur);
+					cleanup.update(iev);
+					bus.asMap
+				});
+				//ev = bus.asMap.yield;
+			};
+			//[valPat.asCompileString, bus].debug("pmodenv: cleanup");
+			cleanup_fun.();
+			//cleanup.exit(ev); // this cleanup all PmodEnv of the pattern
+			ev;
+		}).repeat(repeats.clip(1,inf)).embedInStream(strev)
 	}
 }
 
