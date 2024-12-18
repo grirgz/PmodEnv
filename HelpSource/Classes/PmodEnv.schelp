@@ -72,9 +72,8 @@ ARGUMENT:: valPat
 The pattern of the level of the envelope
 
 ARGUMENT:: timePat
-The pattern of the time for each segment. Default value 1.
-If you pass \dur instead of a pattern, it will use the value from the \dur key
-of the pattern (and handle \stretch).
+The pattern of the time for each segment. If nil, it use the \dur key of the
+Pbind to get the duration, this synchronize the PmodEnv with the pattern.
 
 ARGUMENT:: curvePat
 The pattern of the curve for each segment. Default value 0.
@@ -89,6 +88,44 @@ EXAMPLES::
 
 code::
 (
+SynthDef(\sawenv, { arg out=0, gate=1, amp=0.1, pan=0, freq=200;
+	var sig;
+	var lpenv, lpfreq;
+	sig = LFSaw.ar(freq * [1,1.002]).mean;
+	lpenv = EnvGen.kr(\lpadsr.kr(Env.adsr(0.01,0.4,0.1,0.8)), gate, doneAction:0) * \envamt.kr(1) + 1;
+	lpfreq = freq * \kbamt.kr(0) + 1;
+	//sig = RLPF.ar(sig, ( \lpf.kr(130) * lpenv * lpfreq ).clip(20,20000), \rq.kr(0.8));
+	sig = MoogFF.ar(sig, ( \lpf.kr(130) * lpenv * lpfreq ).clip(20,20000), 1/\rq.kr(0.8)) * 3;
+	sig = sig * EnvGen.kr(\adsr.kr(Env.adsr(0.1,0.1,0.8,0.8)), gate, doneAction:2);
+	sig = Pan2.ar(sig, pan, amp);
+	Out.ar(out, sig);
+}).add;
+)
+
+(
+Pdef(\acidbass, 
+	Pbind(
+		\instrument, \sawenv,
+		\degree, Pseq([0,3,2,-2],inf),
+		\lpadsr, Pseq([
+			[ Env.adsr(0.01,0.1,1.2,0.1) ],
+		],inf),
+		\adsr, Pseq([
+			[ Env.adsr(0.01,0.01,1,0.01) ],
+		],inf),
+		\kbamt, 0,
+		\lpf, PmodEnv(Pseq([150,600],1), 8).loop,
+		\rq, PmodEnv(Pseq([0.26,0.4],1), 2).loop,
+		\envamt, 2,
+		\octave, 4,
+		\dur, 1/8,
+		\amp, 0.07,
+	)
+).play;
+);
+
+// Pmono is supported
+(
 SynthDef(\saw, { arg out=0, amp=0.1, gate=1, pan=0, spread=0.8, freq=200,  doneAction=2;
 	var sig, sig1, sig2, sig3;
 	sig = LFSaw.ar(freq * [1.01,1,0.99]);
@@ -99,7 +136,6 @@ SynthDef(\saw, { arg out=0, amp=0.1, gate=1, pan=0, spread=0.8, freq=200,  doneA
 }).add;
 )
 
-// Pmono is supported
 (
 Pdef(\doc,
 	Pmono(

@@ -1,6 +1,6 @@
 
 PmodEnv : Pattern {
-	classvar watchdogEnabled = true;
+	classvar <>watchdogEnabled = true;
 	var valPat, timePat, curvePat, repeats;
 
 	*new { arg valPat, timePat, curvePat, repeats=1;
