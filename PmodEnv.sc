@@ -90,7 +90,7 @@ PmodEnv : Pattern {
 				//} {
 					//timePat = timePat ??  1;
 				//};
-				timePat = timePat ?? { Pfunc({ ev.delta.value }) };
+				timePat = timePat ?? { Pfunc({ ev.use { ( ~dur.value ? 1 ) * ( ~stretch.value ? 1 ) } }) };
 				curvePat = curvePat ??  { 0 };
 
 
@@ -158,7 +158,8 @@ PmodEnv : Pattern {
 
 			while{ running == true } {
 				ev = PnoteEnv.makePayload(ev, { arg iev;
-					watchdog.alive(iev.delta ?? iev.dur);
+					// should not use delta because set to 0 by Ppar
+					watchdog.alive(iev.use { ( ~dur.value ? 1 ) * ( ~stretch.value ? 1 ) });
 					cleanup.update(iev);
 					bus.asMap
 				});
