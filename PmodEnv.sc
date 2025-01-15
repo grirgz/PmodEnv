@@ -1,7 +1,7 @@
 
 PmodEnv : Pattern {
 	classvar <>watchdogEnabled = true;
-	var valPat, timePat, curvePat, repeats;
+	var <valPat, <timePat, <curvePat, <repeats;
 
 	*new { arg valPat, timePat, curvePat, repeats=1;
 		^super.newCopyArgs(valPat, timePat, curvePat, repeats);
@@ -102,7 +102,8 @@ PmodEnv : Pattern {
 				};
 				CmdPeriod.doOnce(cmdperiod_fun);
 
-				watchdog.alive(iev.delta ?? iev.dur);
+				// should not use delta because set to 0 by Ppar
+				watchdog.alive(iev.use { ( ~dur.value ? 1 ) * ( ~stretch.value ? 1 ) });
 
 				patplayer = Pmono(\PmodEnv_mono,
 					\out, bus,
