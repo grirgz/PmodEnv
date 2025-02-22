@@ -47,7 +47,7 @@ PmodEnv : Pattern {
 					//cmdperiod_fun.dump;
 					//CmdPeriod.remove(cmdperiod_fun);
 					//CmdPeriod.objects.debug("cmdperiod after");
-					if(bus.index.notNil) {
+					if(bus.notNil and: {bus.index.notNil}) {
 						bus.free;
 					}
 				}.fork;
@@ -96,7 +96,7 @@ PmodEnv : Pattern {
 
 				cmdperiod_fun = { 
 					//[ valPat, bus ].debug("cmdperiod: free bus");
-					if(bus.index.notNil) {
+					if(bus.notNil and: {bus.index.notNil}) {
 						bus.free 
 					}
 				};
@@ -243,7 +243,7 @@ PnoteEnv {
 				make_cleanup_fun = { arg lbus;
 					{
 						//debug("pnoteEnv_generic cleanup_fun");
-						if(lbus.index.notNil) {
+						if(lbus.notNil and: {lbus.index.notNil}) {
 							var reltime;
 							var env = nextenv ?? { prevenv };
 							if(env.notNil) {
